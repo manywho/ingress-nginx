@@ -40,6 +40,8 @@ export NGINX_INFLUXDB_VERSION=0e2cb6cbf850a29c81e44be9e33d9a15d45c50e8
 export GEOIP2_VERSION=3.2
 export NGINX_AJP_VERSION=bf6cd93f2098b59260de8d494f0f4b1f11a84627
 export LUAJIT_VERSION=2.1-20190228
+export OPENSSL_VERSION=1.0.2r
+export OPENSSL_FIPS_VERSION=2.0.16
 
 export BUILD_PATH=/tmp/build
 
@@ -71,12 +73,10 @@ clean-install \
   patch \
   libpcre3 \
   libpcre3-dev \
-  libssl-dev \
   zlib1g \
   zlib1g-dev \
   libaio1 \
   libaio-dev \
-  openssl \
   libperl-dev \
   cmake \
   util-linux \
@@ -130,6 +130,12 @@ mkdir --verbose -p "$BUILD_PATH"
 cd "$BUILD_PATH"
 
 # download, verify and extract the source files
+get_src a3cd13d0521d22dd939063d3b4a0d4ce24494374b91408a05bdaca8b681c63d4 \
+        "https://www.openssl.org/source/openssl-fips-$OPENSSL_FIPS_VERSION.tar.gz"
+
+get_src ae51d08bba8a83958e894946f15303ff894d75c2b8bbd44a852b64e3fe11d0d6 \
+        "https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz"
+
 get_src e4cfba989bba614cd53f3f406ac6da9f05977d6b1296e5d20a299f10c2d7ae43 \
         "https://nginx.org/download/nginx-$NGINX_VERSION.tar.gz"
 
@@ -219,6 +225,12 @@ get_src 15bd1005228cf2c869a6f09e8c41a6aaa6846e4936c473106786ae8ac860fab7 \
 
 get_src 5f629a50ba22347c441421091da70fdc2ac14586619934534e5a0f8a1390a950 \
         "https://github.com/yaoweibin/nginx_ajp_module/archive/$NGINX_AJP_VERSION.tar.gz"
+
+# Compile the OpenSSL FIPS module first, as it doesn't seem to play well with parallel compilation
+cd "$BUILD_PATH/openssl-fips-$OPENSSL_FIPS_VERSION"
+./config
+make
+make install
 
 # improve compilation times
 CORES=$(($(grep -c ^processor /proc/cpuinfo) - 0))
@@ -468,6 +480,7 @@ Include /etc/nginx/owasp-modsecurity-crs/rules/RESPONSE-999-EXCLUSION-RULES-AFTE
 cd "$BUILD_PATH/nginx-$NGINX_VERSION"
 
 # apply Nginx patches
+patch -p1 < /patches/nginx-openssl-fips.patch
 patch -p1 < /patches/openresty-ssl_cert_cb_yield.patch
 
 WITH_FLAGS="--with-debug \
@@ -550,6 +563,8 @@ WITH_MODULES="--add-module=$BUILD_PATH/ngx_devel_kit-$NDK_VERSION \
   --without-http_scgi_module \
   --with-cc-opt="${CC_OPT}" \
   --with-ld-opt="${LD_OPT}" \
+  --with-openssl="${BUILD_PATH}/openssl-$OPENSSL_VERSION" \
+  --with-openssl-opt="fips" \
   --user=www-data \
   --group=www-data \
   ${WITH_MODULES}

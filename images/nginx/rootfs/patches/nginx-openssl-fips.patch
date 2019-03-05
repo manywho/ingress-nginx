@@ -1,0 +1,13 @@
+diff -Naur nginx-1.15.9/src/event/ngx_event_openssl.c nginx-1.15.9-new/src/event/ngx_event_openssl.c
+--- a/src/event/ngx_event_openssl.c	2019-02-26 15:29:22.000000000 +0000
++++ b/src/event/ngx_event_openssl.c	2019-03-05 11:09:43.338466961 +0000
+@@ -164,6 +164,9 @@
+ 
+ #endif
+ 
++    // Enable FIPS mode for OpenSSL
++    FIPS_mode_set(1);
++
+ #if OPENSSL_VERSION_NUMBER >= 0x0090800fL
+ #ifndef SSL_OP_NO_COMPRESSION
+     {
