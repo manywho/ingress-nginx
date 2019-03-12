@@ -227,6 +227,7 @@ get_src 5f629a50ba22347c441421091da70fdc2ac14586619934534e5a0f8a1390a950 \
         "https://github.com/yaoweibin/nginx_ajp_module/archive/$NGINX_AJP_VERSION.tar.gz"
 
 # Compile the OpenSSL FIPS module first, as it doesn't seem to play well with parallel compilation
+# NOTE: These commands cannot be changed, otherwise the resulting output is *not* FIPS validated
 cd "$BUILD_PATH/openssl-fips-$OPENSSL_FIPS_VERSION"
 ./config
 make
@@ -507,6 +508,12 @@ if [[ ${ARCH} != "aarch64" ]]; then
   WITH_FLAGS+=" --with-file-aio"
 fi
 
+# We need to export this to enable the OpenSSL FIPS "linker" to fallback to GCC when setting the integrity test digest
+export FIPSLD_CC=gcc
+
+# Update the library cache to pick up the newly compiled libraries
+ldconfig
+
 # "Combining -flto with -g is currently experimental and expected to produce unexpected results."
 # https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
 CC_OPT="-g -Og -fPIE -fstack-protector-strong \
@@ -561,6 +568,7 @@ WITH_MODULES="--add-module=$BUILD_PATH/ngx_devel_kit-$NDK_VERSION \
   --without-mail_imap_module \
   --without-http_uwsgi_module \
   --without-http_scgi_module \
+  --with-cc=/usr/local/ssl/fips-2.0/bin/fipsld \
   --with-cc-opt="${CC_OPT}" \
   --with-ld-opt="${LD_OPT}" \
   --with-openssl="${BUILD_PATH}/openssl-$OPENSSL_VERSION" \
